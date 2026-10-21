@@ -187,3 +187,69 @@ test.describe('Отправка сообщения в мессенджере', (
 
 
 });
+
+
+test('сообщения сохраняются после перезагрузки', async ({ page }) => {
+    const messenger = new MessengerPage(page);
+
+    await messenger.open();
+    await messenger.fillRecipient('masha');
+    await messenger.fillMessage('Привет, Маша!');
+    await messenger.send();
+
+    await page.reload();
+
+    await messenger.fillRecipient('masha');
+
+    await expect(messenger.userMessages).toHaveText([
+        'Привет, Маша!'
+    ]);
+});
+
+test('у разных контактов отдельные переписки', async ({ page }) => {
+    const messenger = new MessengerPage(page);
+
+    await messenger.open();
+
+    await messenger.fillRecipient('masha');
+    await messenger.fillMessage('Сообщение для Маши');
+    await messenger.send();
+
+    await messenger.fillRecipient('egor');
+    await messenger.fillMessage('Сообщение для Егора');
+    await messenger.send();
+
+    await expect(messenger.userMessages).toHaveText([
+        'Сообщение для Егора'
+    ]);
+
+    await messenger.fillRecipient('masha');
+
+    await expect(messenger.userMessages).toHaveText([
+        'Сообщение для Маши'
+    ]);
+});
+
+test('история восстанавливается при переключении контактов', async ({ page }) => {
+    const messenger = new MessengerPage(page);
+
+    await messenger.open();
+
+    await messenger.fillRecipient('masha');
+    await messenger.fillMessage('Первое сообщение');
+    await messenger.send();
+
+    await messenger.fillMessage('Второе сообщение');
+    await messenger.send();
+
+    await messenger.fillRecipient('zahar');
+
+    await expect(messenger.userMessages).toHaveCount(0);
+
+    await messenger.fillRecipient('masha');
+
+    await expect(messenger.userMessages).toHaveText([
+        'Первое сообщение',
+        'Второе сообщение'
+    ]);
+});
