@@ -135,3 +135,4 @@ dist
 # Данные переписки
 /messages.json
 /messages.test.json
+/messages.loadtest.json
