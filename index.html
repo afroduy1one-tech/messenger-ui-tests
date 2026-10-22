@@ -3,93 +3,150 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f2f0e9">
     <title>Messenger</title>
     <link rel="stylesheet" href="styles.css">
 </head>
-
 <body>
-    <div class="chat-container">
+    <main class="messenger-app">
+        <aside class="sidebar">
+            <header class="sidebar-header">
+                <div class="brand">
+                    <div class="brand-mark">m.</div>
+                    <div>
+                        <h1>Messenger</h1>
+                        <span class="brand-caption">YOUR LITTLE CORNER</span>
+                    </div>
+                </div>
+                <span class="online-status"><span class="status-dot"></span> В сети</span>
+            </header>
 
-        <header class="chat-header">
-            <div>
-                <h1>Messenger</h1>
-                <span class="online-status">● В сети</span>
-            </div>
-        </header>
-
-        <div class="recipient-section">
-    <label for="recipient-input">Получатель</label>
-
-    <div class="recipient-wrapper">
-        <input
-            type="text"
-            id="recipient-input"
-            placeholder="Введите username"
-            autocomplete="off"
-        >
-
-        <button
-            type="button"
-            id="contacts-button"
-            class="contacts-button"
-            aria-label="Выбрать контакт"
-        >
-            <span>👥</span>
-            <span>⌄</span>
-        </button>
-
-        <div id="contacts-list" class="contacts-list">
-            <button class="contact" data-username="masha">
-                👩 masha
-            </button>
-
-            <button class="contact" data-username="zahar">
-                👨 zahar
-            </button>
-
-            <button class="contact" data-username="egor">
-                👨 egor
-            </button>
-        </div>
-    </div>
-
-    <div id="recipient-status" class="field-message"></div>
-</div>
-
-        <div class="chat-box" id="chat-box">
-            <div class="empty-chat">
-                Выберите получателя и напишите сообщение
-            </div>
-        </div>
-
-        <div class="message-section">
-
-            <textarea
-                id="message-input"
-                placeholder="Введите сообщение..."
-                rows="3"
-            ></textarea>
-
-            <div class="counter">
-                <span id="message-counter">0</span>/1000
+            <div class="sidebar-title">
+                <span>Сообщения</span>
+                <span class="contact-count">03</span>
             </div>
 
-            <div id="message-error" class="error-message"></div>
+            <div class="recipient-section">
+                <label for="recipient-input">Найти диалог</label>
+                <div class="recipient-wrapper">
+                    <input
+                        type="text"
+                        id="recipient-input"
+                        placeholder="Имя пользователя..."
+                        autocomplete="off"
+                        aria-label="Найти контакт"
+                    >
+                    <button
+                        type="button"
+                        id="contacts-button"
+                        class="contacts-button"
+                        aria-label="Очистить поиск"
+                        title="Очистить поиск"
+                    >×</button>
+                </div>
+                <div id="recipient-status" class="field-message" aria-live="polite"></div>
+            </div>
 
-            <button
-                id="send-button"
-                type="button"
-                disabled
-            >
-                Отправить
-            </button>
+            <nav class="contacts-list show" id="contacts-list" aria-label="Список диалогов">
+                <div class="contacts-label">ВСЕ ДИАЛОГИ</div>
 
-        </div>
+                <button class="contact" data-username="masha" type="button">
+                    <span class="avatar avatar-masha">м</span>
+                    <span class="contact-info">
+                        <span class="contact-name">masha</span>
+                        <span class="contact-preview">Личный чат</span>
+                    </span>
+                    <span class="contact-arrow">↗</span>
+                </button>
 
-    </div>
+                <button class="contact" data-username="zahar" type="button">
+                    <span class="avatar avatar-zahar">з</span>
+                    <span class="contact-info">
+                        <span class="contact-name">zahar</span>
+                        <span class="contact-preview">Личный чат</span>
+                    </span>
+                    <span class="contact-arrow">↗</span>
+                </button>
 
-    <div id="toast" class="toast"></div>
+                <button class="contact" data-username="egor" type="button">
+                    <span class="avatar avatar-egor">е</span>
+                    <span class="contact-info">
+                        <span class="contact-name">egor</span>
+                        <span class="contact-preview">Личный чат</span>
+                    </span>
+                    <span class="contact-arrow">↗</span>
+                </button>
 
+                <div id="contacts-empty" class="contacts-empty" hidden>
+                    Контакты не найдены
+                </div>
+            </nav>
+
+            <footer class="sidebar-footer">
+                <span class="profile-avatar">М</span>
+                <span class="profile-info">
+                    <strong>Мой профиль</strong>
+                    <span>Локальный пользователь</span>
+                </span>
+                <span class="profile-dots">•••</span>
+            </footer>
+        </aside>
+
+        <section class="conversation">
+            <header class="conversation-header">
+                <button
+                    type="button"
+                    id="back-to-chats"
+                    class="back-to-chats"
+                    aria-label="Вернуться к списку чатов"
+                >
+                    ←
+                </button>
+                <div class="conversation-person">
+                    <div id="active-avatar" class="avatar avatar-placeholder">?</div>
+                    <div>
+                        <h2 id="active-contact">Выберите диалог</h2>
+                        <span id="active-status" class="conversation-status">Ваше пространство для общения</span>
+                    </div>
+                </div>
+                <div class="conversation-actions">
+                    <span class="secure-label"><span>●</span> ЛИЧНЫЙ ЧАТ</span>
+                </div>
+            </header>
+
+            <div class="chat-box" id="chat-box" aria-live="polite">
+                <div class="empty-chat">
+                    <span class="empty-icon">↗</span>
+                    <strong>Всё начинается с сообщения</strong>
+                    <span>Выбери диалог слева, чтобы продолжить общение.</span>
+                </div>
+            </div>
+
+            <div class="message-section">
+                <div class="composer-hint">Enter отправляет сообщение · Shift + Enter переносит строку</div>
+                <textarea
+                    id="message-input"
+                    placeholder="Написать сообщение..."
+                    rows="2"
+                    maxlength="1001"
+                    aria-label="Текст сообщения"
+                ></textarea>
+
+                <div class="composer-bottom">
+                    <div class="composer-meta">
+                        <div class="counter"><span id="message-counter">0</span>/1000</div>
+                        <div id="message-error" class="error-message"></div>
+                    </div>
+                    <button id="send-button" type="button" disabled>
+                        <span>Отправить</span>
+                        <span class="send-icon">↑</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script src="scripts.js"></script>
 </body>
 </html>

@@ -2,140 +2,176 @@
 document.addEventListener("DOMContentLoaded", function () {
     const recipientInput = document.getElementById("recipient-input");
     const recipientStatus = document.getElementById("recipient-status");
-
     const messageInput = document.getElementById("message-input");
     const messageCounter = document.getElementById("message-counter");
     const messageError = document.getElementById("message-error");
-
     const sendButton = document.getElementById("send-button");
     const chatBox = document.getElementById("chat-box");
     const toast = document.getElementById("toast");
-
     const contactsButton = document.getElementById("contacts-button");
     const contactsList = document.getElementById("contacts-list");
-    const contacts = document.querySelectorAll(".contact");
+    const contacts = Array.from(document.querySelectorAll(".contact"));
+    const contactsEmpty = document.getElementById("contacts-empty");
+    const activeContact = document.getElementById("active-contact");
+    const activeAvatar = document.getElementById("active-avatar");
+    const activeStatus = document.getElementById("active-status");
 
-    const MIN_MESSAGE_LENGTH = 1;
     const MAX_MESSAGE_LENGTH = 1000;
-
     const MIN_USERNAME_LENGTH = 3;
     const MAX_USERNAME_LENGTH = 20;
-
-    const STORAGE_KEY = "messenger-conversations-v1";
-
-    const users = ["egor", "masha", "zahar"];
+    const users = ["masha", "zahar", "egor"];
 
     let recipientValid = false;
     let messageValid = false;
+    let requestInProgress = false;
+    let currentRecipient = "";
     let toastTimeout;
+    let conversationRequestId = 0;
 
-    // Загружаем переписки из localStorage.
-    function loadConversations() {
-        try {
-            const saved = localStorage.getItem(STORAGE_KEY);
-
-            if (!saved) {
-                return {};
-            }
-
-            const parsed = JSON.parse(saved);
-
-            if (
-                parsed === null ||
-                typeof parsed !== "object" ||
-                Array.isArray(parsed)
-            ) {
-                return {};
-            }
-
-            return parsed;
-        } catch (error) {
-            console.error("Не удалось загрузить переписки:", error);
-            return {};
-        }
+    function renderEmptyChat(text) {
+        const empty = document.createElement("div");
+        empty.className = "empty-chat";
+        empty.textContent = text;
+        chatBox.replaceChildren(empty);
     }
 
-    let conversations = loadConversations();
-
-    // Сохраняем все переписки в localStorage.
-    function saveConversations() {
-        try {
-            localStorage.setItem(
-                STORAGE_KEY,
-                JSON.stringify(conversations)
-            );
-        } catch (error) {
-            console.error("Не удалось сохранить переписки:", error);
-            showToast("Не удалось сохранить сообщения");
-        }
+    function getAvatarClass(username) {
+        return "avatar-" + username;
     }
 
-    // Создаём отдельную историю для каждого пользователя.
-    function getConversation(username) {
-        if (!Array.isArray(conversations[username])) {
-            conversations[username] = [];
-        }
+    function updateActiveContact(username) {
+        const selected = users.includes(username);
+        document.querySelector(".messenger-app").classList.toggle("chat-open", selected);
 
-        return conversations[username];
+        activeContact.textContent = selected ? username : "Выберите диалог";
+        activeStatus.textContent = selected
+            ? "Личная переписка"
+            : "Ваше пространство для общения";
+
+        activeAvatar.textContent = selected ? username.charAt(0) : "?";
+        activeAvatar.className = "avatar " +
+            (selected ? getAvatarClass(username) : "avatar-placeholder");
+
+        contacts.forEach(function (contact) {
+            const isActive = contact.dataset.username === username;
+            contact.classList.toggle("active", isActive);
+            contact.setAttribute("aria-current", isActive ? "true" : "false");
+        });
     }
 
-    // Отрисовываем переписку выбранного пользователя.
-    function renderConversation(username) {
+    async function loadConversation(username) {
+        currentRecipient = username;
+        const requestId = ++conversationRequestId;
+
         chatBox.replaceChildren();
 
-        if (!username || !users.includes(username)) {
-            const emptyChat = document.createElement("div");
-
-            emptyChat.className = "empty-chat";
-            emptyChat.textContent =
-                "Выберите получателя и напишите сообщение";
-
-            chatBox.appendChild(emptyChat);
+        if (!users.includes(username)) {
+            updateActiveContact("");
+            renderEmptyChat("Выбери диалог слева, чтобы начать общение.");
             return;
         }
 
-        const messages = getConversation(username);
+        updateActiveContact(username);
+        renderEmptyChat("Загружаем переписку...");
 
-        if (messages.length === 0) {
-            const emptyChat = document.createElement("div");
+        try {
+            const response = await fetch(
+                "/api/messages?recipient=" + encodeURIComponent(username)
+            );
 
-            emptyChat.className = "empty-chat";
-            emptyChat.textContent = "Пока нет сообщений";
+            if (!response.ok) {
+                throw new Error("Не удалось загрузить переписку");
+            }
 
-            chatBox.appendChild(emptyChat);
+            const data = await response.json();
+
+            if (
+                requestId !== conversationRequestId ||
+                currentRecipient !== username
+            ) {
+                return;
+            }
+
+            renderConversation(username, data.messages);
+        } catch (error) {
+            console.error("Ошибка загрузки переписки:", error);
+
+            if (requestId === conversationRequestId) {
+                renderEmptyChat("Не удалось загрузить переписку. Попробуй ещё раз.");
+                showToast("Ошибка соединения с сервером");
+            }
+        }
+    }
+
+    function renderConversation(username, messages) {
+        if (currentRecipient !== username) {
+            return;
+        }
+
+        chatBox.replaceChildren();
+
+        if (!messages || messages.length === 0) {
+            renderEmptyChat("Пока здесь тихо. Отправь первое сообщение.");
             return;
         }
 
         messages.forEach(function (message) {
-            const messageElement = document.createElement("div");
+    const element = document.createElement("div");
+    element.className = "message user";
+    element.textContent = message.text;
 
-            messageElement.className = "message user";
-            messageElement.textContent = message.text;
+    if (message.createdAt) {
+        const date = new Date(message.createdAt);
 
-            chatBox.appendChild(messageElement);
-        });
+        if (!Number.isNaN(date.getTime())) {
+            element.dataset.time = date.toLocaleTimeString("ru-RU", {
+                hour: "2-digit",
+                minute: "2-digit"
+            });
+        }
+    }
+
+    chatBox.appendChild(element);
+});
+
 
         chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // Проверяем получателя.
+    function filterContacts(query) {
+        const normalizedQuery = query.trim().toLowerCase();
+        let visibleCount = 0;
+
+        contacts.forEach(function (contact) {
+            const username = contact.dataset.username;
+            const matches = username.includes(normalizedQuery);
+
+            contact.hidden = !matches;
+
+            if (matches) {
+                visibleCount += 1;
+            }
+        });
+
+        contactsEmpty.hidden = visibleCount !== 0;
+    }
+
     function validateRecipient() {
         const username = recipientInput.value.trim();
 
+        filterContacts(username);
         recipientStatus.textContent = "";
         recipientStatus.className = "field-message";
         recipientValid = false;
 
         if (username === "") {
-            renderConversation("");
-            updateSendButton();
-            return;
+        updateSendButton();
+        return;
         }
 
         if (username.length < MIN_USERNAME_LENGTH) {
             recipientStatus.textContent = "Минимум 3 символа";
             recipientStatus.classList.add("error");
-            renderConversation("");
             updateSendButton();
             return;
         }
@@ -143,7 +179,6 @@ document.addEventListener("DOMContentLoaded", function () {
         if (username.length > MAX_USERNAME_LENGTH) {
             recipientStatus.textContent = "Максимум 20 символов";
             recipientStatus.classList.add("error");
-            renderConversation("");
             updateSendButton();
             return;
         }
@@ -151,9 +186,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!/^[A-Za-z0-9_]+$/.test(username)) {
             recipientStatus.textContent =
                 "Используйте только латинские буквы, цифры и _";
-
             recipientStatus.classList.add("error");
-            renderConversation("");
             updateSendButton();
             return;
         }
@@ -161,21 +194,23 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!users.includes(username)) {
             recipientStatus.textContent = "Пользователь не найден";
             recipientStatus.classList.add("error");
-            renderConversation("");
             updateSendButton();
             return;
         }
 
         recipientStatus.textContent = "Пользователь найден";
         recipientStatus.classList.add("success");
-
         recipientValid = true;
 
-        renderConversation(username);
+        if (currentRecipient !== username) {
+            loadConversation(username);
+        } else {
+            updateActiveContact(username);
+        }
+
         updateSendButton();
     }
 
-    // Проверяем сообщение.
     function validateMessage() {
         const message = messageInput.value;
 
@@ -191,24 +226,22 @@ document.addEventListener("DOMContentLoaded", function () {
         if (message.length > MAX_MESSAGE_LENGTH) {
             messageError.textContent =
                 "Сообщение не может содержать более 1000 символов";
-
             updateSendButton();
             return;
         }
 
-        if (message.length >= MIN_MESSAGE_LENGTH) {
-            messageValid = true;
-        }
-
+        messageValid = true;
         updateSendButton();
     }
 
-    // Кнопка доступна только при корректном получателе и сообщении.
     function updateSendButton() {
-        sendButton.disabled = !(recipientValid && messageValid);
+        sendButton.disabled = !(
+            recipientValid &&
+            messageValid &&
+            !requestInProgress
+        );
     }
 
-    // Показываем уведомление.
     function showToast(text) {
         toast.textContent = text;
         toast.classList.add("show");
@@ -217,50 +250,69 @@ document.addEventListener("DOMContentLoaded", function () {
 
         toastTimeout = setTimeout(function () {
             toast.classList.remove("show");
-        }, 2000);
+        }, 2500);
     }
 
-    // Отправляем и сохраняем сообщение.
-    function sendMessage() {
+    async function sendMessage() {
         if (sendButton.disabled) {
             return;
         }
 
-        const message = messageInput.value;
+        const text = messageInput.value.trim();
         const recipient = recipientInput.value.trim();
 
-        if (!users.includes(recipient)) {
+        if (!users.includes(recipient) || !text) {
             return;
         }
 
-        const conversation = getConversation(recipient);
-
-        conversation.push({
-            text: message,
-            timestamp: new Date().toISOString()
-        });
-
-        saveConversations();
-        renderConversation(recipient);
-
-        messageInput.value = "";
-        messageCounter.textContent = "0";
-        messageError.textContent = "";
-        messageValid = false;
-
+        requestInProgress = true;
         updateSendButton();
 
-        showToast("Сообщение отправлено пользователю " + recipient);
+        try {
+            const response = await fetch("/api/messages", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ recipient, text })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Не удалось отправить сообщение");
+            }
+
+            messageInput.value = "";
+            messageCounter.textContent = "0";
+            messageError.textContent = "";
+            messageValid = false;
+
+            showToast("Сообщение отправлено пользователю " + recipient);
+
+            if (currentRecipient === recipient) {
+                await loadConversation(recipient);
+            }
+        } catch (error) {
+            console.error("Ошибка отправки сообщения:", error);
+            showToast(error.message || "Ошибка соединения с сервером");
+        } finally {
+            requestInProgress = false;
+            updateSendButton();
+        }
     }
 
-    // Ввод получателя и сообщения.
     recipientInput.addEventListener("input", validateRecipient);
     messageInput.addEventListener("input", validateMessage);
-
-    // Отправка нажатием кнопки.
     sendButton.addEventListener("click", sendMessage);
 
-    // Enter отправляет, Shift + Enter переносит строку.
+    const backButton = document.getElementById("back-to-chats");
+
+    backButton.addEventListener("click", function () {
+        document.querySelector(".messenger-app")
+            .classList.remove("chat-open");
+    });
+
     messageInput.addEventListener("keydown", function (event) {
         if (event.key === "Enter" && !event.shiftKey) {
             event.preventDefault();
@@ -271,23 +323,34 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
-    // Открываем и закрываем список контактов.
     contactsButton.addEventListener("click", function () {
-        contactsList.classList.toggle("show");
+        recipientInput.value = "";
+        recipientStatus.textContent = "";
+        recipientStatus.className = "field-message";
+        recipientValid = false;
+
+        filterContacts("");
+        updateSendButton();
+        recipientInput.focus();
     });
 
-    // Выбираем контакт и загружаем его переписку.
     contacts.forEach(function (contact) {
         contact.addEventListener("click", function () {
-            recipientInput.value = contact.dataset.username;
+            const username = contact.dataset.username;
 
-            contactsList.classList.remove("show");
+            recipientInput.value = username;
+            recipientStatus.textContent = "Пользователь найден";
+            recipientStatus.className = "field-message success";
+            recipientValid = true;
 
-            validateRecipient();
+            filterContacts("");
+            loadConversation(username);
+            updateSendButton();
         });
     });
 
-    // Показываем начальное состояние чата.
-    renderConversation("");
+    filterContacts("");
+    updateActiveContact("");
+    renderEmptyChat("Выбери диалог слева, чтобы начать общение.");
     updateSendButton();
 });
