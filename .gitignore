@@ -136,3 +136,5 @@ dist
 /messages.json
 /messages.test.json
 /messages.loadtest.json
+
+/load-tests/*-results.json
