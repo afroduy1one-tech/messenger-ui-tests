@@ -188,68 +188,106 @@ test.describe('Отправка сообщения в мессенджере', (
 
 });
 
-
 test('сообщения сохраняются после перезагрузки', async ({ page }) => {
     const messenger = new MessengerPage(page);
+    const message = `Проверка сохранения ${Date.now()}`;
 
     await messenger.open();
     await messenger.fillRecipient('masha');
-    await messenger.fillMessage('Привет, Маша!');
+    await messenger.fillMessage(message);
+
+    await expect(messenger.sendButton).toBeEnabled();
     await messenger.send();
 
-    await page.reload();
+    await expect(messenger.userMessages.last()).toHaveText(message);
 
+    await page.reload();
     await messenger.fillRecipient('masha');
 
-    await expect(messenger.userMessages).toHaveText([
-        'Привет, Маша!'
-    ]);
+    await expect(
+        messenger.userMessages.filter({ hasText: message })
+    ).toHaveCount(1);
 });
 
 test('у разных контактов отдельные переписки', async ({ page }) => {
     const messenger = new MessengerPage(page);
+    const suffix = Date.now();
+    const messageMasha = `Сообщение Маше ${suffix}`;
+    const messageEgor = `Сообщение Егору ${suffix}`;
 
     await messenger.open();
 
     await messenger.fillRecipient('masha');
-    await messenger.fillMessage('Сообщение для Маши');
+    await messenger.fillMessage(messageMasha);
+
+    await expect(messenger.sendButton).toBeEnabled();
     await messenger.send();
+
+    await expect(messenger.userMessages.last()).toHaveText(messageMasha);
 
     await messenger.fillRecipient('egor');
-    await messenger.fillMessage('Сообщение для Егора');
+    await messenger.fillMessage(messageEgor);
+
+    await expect(messenger.sendButton).toBeEnabled();
     await messenger.send();
 
-    await expect(messenger.userMessages).toHaveText([
-        'Сообщение для Егора'
-    ]);
+    await expect(messenger.userMessages.last()).toHaveText(messageEgor);
+
+    await expect(
+        messenger.userMessages.filter({ hasText: messageMasha })
+    ).toHaveCount(0);
 
     await messenger.fillRecipient('masha');
 
-    await expect(messenger.userMessages).toHaveText([
-        'Сообщение для Маши'
-    ]);
+    await expect(
+        messenger.userMessages.filter({ hasText: messageMasha })
+    ).toHaveCount(1);
+
+    await expect(
+        messenger.userMessages.filter({ hasText: messageEgor })
+    ).toHaveCount(0);
 });
 
 test('история восстанавливается при переключении контактов', async ({ page }) => {
     const messenger = new MessengerPage(page);
+    const suffix = Date.now();
+    const firstMessage = `Первое сообщение ${suffix}`;
+    const secondMessage = `Второе сообщение ${suffix}`;
 
     await messenger.open();
 
     await messenger.fillRecipient('masha');
-    await messenger.fillMessage('Первое сообщение');
+    await messenger.fillMessage(firstMessage);
+
+    await expect(messenger.sendButton).toBeEnabled();
     await messenger.send();
 
-    await messenger.fillMessage('Второе сообщение');
+    await expect(messenger.userMessages.last()).toHaveText(firstMessage);
+
+    await messenger.fillMessage(secondMessage);
+
+    await expect(messenger.sendButton).toBeEnabled();
     await messenger.send();
+
+    await expect(messenger.userMessages.last()).toHaveText(secondMessage);
 
     await messenger.fillRecipient('zahar');
 
-    await expect(messenger.userMessages).toHaveCount(0);
+    await expect(
+        messenger.userMessages.filter({ hasText: firstMessage })
+    ).toHaveCount(0);
+
+    await expect(
+        messenger.userMessages.filter({ hasText: secondMessage })
+    ).toHaveCount(0);
 
     await messenger.fillRecipient('masha');
 
-    await expect(messenger.userMessages).toHaveText([
-        'Первое сообщение',
-        'Второе сообщение'
-    ]);
+    await expect(
+        messenger.userMessages.filter({ hasText: firstMessage })
+    ).toHaveCount(1);
+
+    await expect(
+        messenger.userMessages.filter({ hasText: secondMessage })
+    ).toHaveCount(1);
 });
