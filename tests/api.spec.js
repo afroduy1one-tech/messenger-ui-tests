@@ -78,6 +78,26 @@ test.describe('API мессенджера', () => {
         expect(await response.json()).toHaveProperty('error');
     });
 
+    test('принимается сообщение длиной ровно 1000 символов', async ({ request }) => {
+    const text = 'a'.repeat(1000);
+
+    const response = await request.post('/api/messages', {
+        data: {
+            recipient: 'masha',
+            text
+        }
+    });
+
+    expect(response.status()).toBe(201);
+
+    
+
+    const data = await response.json();
+    expect(data.message.text).toBe(text);
+    expect(data.message.text.length).toBe(1000);
+    });
+
+
     test('отклоняется сообщение длиннее 1000 символов', async ({ request }) => {
         const response = await request.post('/api/messages', {
             data: {
